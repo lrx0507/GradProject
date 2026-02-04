@@ -1,6 +1,12 @@
 // 严格区分：值导入 + 类型仅导入（适配verbatimModuleSyntax）
 import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, RouteMeta } from 'vue-router';
+// 导入4个前台核心功能页面（新增）
+import MapInteraction from '@/views/MapInteraction.vue';
+import RoutePlanning from '@/views/RoutePlanning.vue';
+import FeatureRoute from '@/views/front/FeatureRoutes.vue';
+import NearbyPOI from '@/views/NearbyPOI.vue';
+// 原有导入保留
 import frontRoutes from './front';
 import adminRoutes from './admin';
 import FrontLayout from '@/layout/FrontLayout.vue';
@@ -23,16 +29,27 @@ declare module 'vue-router' {
 
 // 路由规则数组（严格RouteRecordRaw类型约束）
 const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: '/front/path-planning' },
+  // 根路径重定向：改为跳转到前台地图交互页面（替换原有/front/path-planning）
+  { path: '/', redirect: '/front/map' },
+  // 404页面保留
   { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('@/views/404.vue') },
-  // 前台路由
+  // 前台路由（核心修改：将4个功能页面合并为children子路由，保留FrontLayout布局）
   {
     path: '/front',
     name: 'Front',
     component: FrontLayout,
-    children: frontRoutes
+    meta: { title: '前台首页' }, // 可选：设置前台布局标题
+    children: [
+      // 合并原有frontRoutes（若有）
+      ...frontRoutes,
+      // 新增4个前台核心功能子路由（路径统一带/front前缀，匹配布局）
+      { path: 'map', component: MapInteraction, meta: { title: '地图交互' } },
+      { path: 'route-planning', component: RoutePlanning, meta: { title: '路径规划' } },
+      { path: 'feature-route', component: FeatureRoute, meta: { title: '特色路线' } },
+      { path: 'nearby-poi', component: NearbyPOI, meta: { title: '附近POI查找' } }
+    ]
   },
-  // 后台路由（需要登录验证）
+  // 后台路由（原有逻辑完全保留，无需修改）
   {
     path: '/admin',
     name: 'Admin',
@@ -40,7 +57,7 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true, title: '管理中心' },
     children: adminRoutes
   },
-  // 登录页
+  // 登录页（原有逻辑完全保留）
   {
     path: '/login',
     name: 'Login',
@@ -49,14 +66,14 @@ const routes: RouteRecordRaw[] = [
   }
 ];
 
-// 创建路由实例，配置历史模式+滚动行为
+// 创建路由实例，配置历史模式+滚动行为（原有逻辑保留）
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
   scrollBehavior: () => ({ top: 0 }) // 路由跳转后回到页面顶部
 });
 
-// 全局前置路由守卫 - 登录验证 + 页面标题设置
+// 全局前置路由守卫 - 登录验证 + 页面标题设置（原有逻辑完全保留，无需修改）
 router.beforeEach((to, from, next) => {
   // 动态设置页面标题（结合路由meta）
   if (to.meta.title) {
