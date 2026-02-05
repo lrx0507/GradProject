@@ -1,20 +1,4 @@
 // src/types/map.ts - 完整类型定义（天地图核心类型 + 原有业务类型，全量导出）
-declare global {
-  interface Window {
-    T?: {
-      // 天地图所有核心构造器，与实际API一致
-      Map: new (container: HTMLElement) => TDMap;
-      LngLat: new (lng: number, lat: number) => TDLngLat;
-      LngLatBounds: new () => TDLngLatBounds;
-      TileLayer: new (url: string, options: TDTileLayerOptions) => TDTileLayer;
-      Marker: new (lnglat: TDLngLat, options?: TDMarkerOptions) => TDMarker;
-      Icon: new (options: TDIconOptions) => TDIcon;
-      Polyline: new (lnglats: TDLngLat[], options: TDPolylineOptions) => TDPolyline;
-      InfoWindow: new (content: string, options?: TDInfoWindowOptions) => TDInfoWindow;
-      Geolocation: new () => TDGeolocation;
-    };
-  }
-}
 
 // -------------------------- 天地图核心类型（全量导出，匹配页面导入） --------------------------
 /**
@@ -28,11 +12,11 @@ export interface TDLngLat {
 /** 天地图标记点事件类型（新增：补充mouseover/mouseout） */
 export type TDMarkerEvent = "click" | "mouseover" | "mouseout";
 
-/**
- * 天地图经纬度范围类型
- */
+
+/** 天地图经纬度范围类型（路线缩放fitBounds需用，新增） */
 export interface TDLngLatBounds {
-  extend: (lnglat: TDLngLat) => void;
+  new (): TDLngLatBounds;
+  extend(lnglat: TDLngLat): void;
 }
 
 /**
@@ -46,6 +30,13 @@ export interface TDTileLayerOptions {
 }
 export type TDTileLayer = object;
 
+export interface TDIconOptions {
+  iconUrl: string; // 图标地址
+  iconSize: [number, number]; // 图标尺寸 [宽, 高]
+  iconAnchor?: [number, number]; // 图标锚点（可选）
+  popupAnchor?: [number, number]; // 弹窗锚点（可选）
+}
+
 /**
  * 天地图图标配置类型
  */
@@ -54,11 +45,22 @@ export interface TDIconOptions {
   iconSize: [number, number];
   iconAnchor?: [number, number];
 }
+export interface TDIcon {
+  new (options: TDIconOptions): TDIcon;
+}
 /**
  * 天地图图标实例类型（导出，匹配页面导入）
  */
-export type TDIcon = object;
-
+/** 天地图标记点类型（修改：添加setIcon方法） */
+export interface TDMarker {
+  new (lnglat: TDLngLat): TDMarker;
+  addTo(map: TDMap): void;
+  addEventListener(
+    event: TDMarkerEvent,
+    callback: (e: { lnglat: TDLngLat }) => void
+  ): void;
+  setIcon(icon: TDIcon): void; // 新增：标记点设置图标方法
+}
 /**
  * 天地图标记点配置类型
  */
@@ -95,11 +97,10 @@ export interface TDPolylineOptions {
   opacity: number;
 }
 
-/**
- * 天地图折线实例类型（导出，匹配页面导入）
- */
+/** 天地图折线类型（修改：匹配实际构造参数） */
 export interface TDPolyline {
-  addTo: (map: TDMap) => void;
+  new (lnglats: TDLngLat[], options: TDStyleOptions): TDPolyline;
+  addTo(map: TDMap): void;
 }
 
 /**
@@ -114,33 +115,31 @@ export interface TDInfoWindowOptions {
 /**
  * 天地图定位结果类型
  */
+/** 天地图定位结果类型 */
 export interface TDGeolocationResult {
   success: boolean;
   lnglat: TDLngLat;
+  accuracy?: number;
 }
-
-/**
- * 天地图定位实例类型
- */
+/** 天地图定位类型 */
 export interface TDGeolocation {
-  getCurrentPosition: (callback: (res: TDGeolocationResult) => void) => void;
+  new (): TDGeolocation;
+  getCurrentPosition(callback: (res: TDGeolocationResult) => void): void;
 }
 
-/**
- * 天地图核心实例类型（导出，包含所有页面用到的方法，解决TS2305）
- */
+/** 天地图核心实例类型（完善：添加fitBounds方法，路线缩放需用） */
 export interface TDMap {
-  centerAndZoom: (lnglat: TDLngLat, zoom: number) => void;
-  enableScrollWheelZoom: (enable: boolean) => void;
-  addLayer: (layer: TDTileLayer) => void;
-  clearOverlays: () => void;
-  panTo: (lnglat: TDLngLat) => void;
-  addOverlay: (overlay: TDMarker | TDPolyline) => void;
-  addEventListener: (event: 'click', callback: (e: { lnglat: TDLngLat }) => void) => void;
-  fitBounds: (bounds: TDLngLatBounds) => void;
-  openInfoWindow: (infoWindow: TDInfoWindow, lnglat: TDLngLat) => void;
-  closeInfoWindow(): void;
+  new (container: HTMLElement): TDMap;
+  centerAndZoom(lnglat: TDLngLat, zoom: number): void;
+  enableScrollWheelZoom(enable: boolean): void;
+  addLayer(layer: object): void;
+  clearOverlays(): void;
+  panTo(lnglat: TDLngLat): void;
+  addOverlay(overlay: TDMarker | TDPolyline): void;
+  addEventListener(event: "click", callback: (e: { lnglat: TDLngLat }) => void): void;
+  fitBounds(bounds: TDLngLatBounds): void; // 新增：缩放至指定经纬度范围
 }
+
 
 // -------------------------- 原有业务类型（完全保留，无任何修改） --------------------------
 // 基础经纬度坐标类型（保留原有定义，作为核心基础类型）
@@ -251,6 +250,42 @@ export interface RouteCard {
     elevation: string;
   };
 }
+/** 天地图折线/轮廓样式配置类型（完善，匹配天地图API） */
+export interface TDStyleOptions {
+  color: string; // 颜色
+  weight: number; // 线宽/描边宽度
+  opacity: number; // 透明度
+  fillColor?: string; // 填充颜色（可选，面要素用）
+  fillOpacity?: number; // 填充透明度（可选）
+}
+
+// @/types/map.ts - 新增openInfoWindow方法声明
+export interface TDMap {
+  new (container: HTMLElement): TDMap;
+  centerAndZoom(lnglat: TDLngLat, zoom: number): void;
+  enableScrollWheelZoom(enable: boolean): void;
+  addLayer(layer: object): void;
+  clearOverlays(): void;
+  panTo(lnglat: TDLngLat): void;
+  addOverlay(overlay: TDMarker | TDPolyline): void;
+  addEventListener(event: "click", callback: (e: { lnglat: TDLngLat }) => void): void;
+  fitBounds(bounds: TDLngLatBounds): void;
+  closeInfoWindow(): void;
+  openInfoWindow(infoWindow: TDInfoWindow, lnglat: TDLngLat): void; // 新增：打开信息窗口方法
+}
+
+// src/types/map.ts - 补充图层相关类型（若已存在则无需重复添加）
+/** 天地图瓦片图层配置项类型 */
+export interface TDTileLayerOptions {
+  layer: string;
+  style: string;
+  tileMatrixSet: string;
+  format: string;
+}
+
+
+
+// 其他原有类型（TDLngLat/TDMarker/TDMap等）保持不变
 
 // 导出空对象，确保全局声明生效
 export {};

@@ -55,8 +55,8 @@ export const initTDMap = async (container: Ref<HTMLDivElement | null>): Promise<
   await loadTDScript();
   // 非空断言安全，loadTDScript已保证window.T存在
   const map = new window.T!.Map(container.value);
-  const defaultLngLat = new window.T!.LngLat(116.397428, 39.90923);
-  map.centerAndZoom(defaultLngLat, 14);
+   const defaultLngLat = new window.T!.LngLat(118.876202, 31.896178) // 南京方山核心经纬度
+  map.centerAndZoom(defaultLngLat, 15); // 缩放级别15（方山区域最佳视野）
   map.enableScrollWheelZoom(true);
   return map;
 };

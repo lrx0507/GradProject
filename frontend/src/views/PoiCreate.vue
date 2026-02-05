@@ -43,8 +43,8 @@
 import { ref, onMounted, nextTick, onBeforeUnmount, watch } from 'vue'
 import axios from 'axios'
 import type { Poi, PoiType } from '@/types/poi'
-// 修复：删除重复的POI_TYPE_LABELS导入，保留一次完整导入
-import { POI_TYPE_LABELS, POI_TYPE_ICONS } from '@/types/poi'
+// 修复1：删除未使用的POI_TYPE_ICONS，仅保留实际使用的POI_TYPE_LABELS
+import { POI_TYPE_LABELS } from '@/types/poi'
 import { ElMessage, ElMessageBox } from 'element-plus'
 // OpenLayers 核心依赖
 import Map from 'ol/Map'
@@ -75,14 +75,14 @@ const API_BASE_URL = 'http://localhost:8000'
 const reloadFlag = ref(0)
 // 表单弹窗显隐
 const dialogVisible = ref(false)
-// 修复1：form初始值type改为显式PoiType类型，匹配接口定义
+// form初始值type显式指定PoiType类型，匹配接口定义
 const form = ref<Poi>({
   name: '',
   type: 'entrance' as PoiType, // 显式指定类型，解决Type 'entrance'不兼容问题
   description: '',
   lat: 0,
   lng: 0,
-  is_active: true // 修复2：Poi接口已新增is_active，无属性缺失报错
+  is_active: true // Poi接口已新增is_active，无属性缺失报错
 });
 // 表单校验规则（必填项校验）
 const rules = {
@@ -98,8 +98,6 @@ let map: Map | null = null
 let savedPoiLayer: VectorLayer<VectorSource> | null = null
 // POI悬停信息弹窗
 let hoverOverlay: Overlay | null = null
-// 修复3：定义poiLayer变量（原代码未定义直接使用）
-let poiLayer: VectorLayer<VectorSource> | null = null
 
 // === 生命周期 ===
 // 组件挂载：初始化地图 + 加载所有POI
@@ -121,38 +119,7 @@ onBeforeUnmount(() => {
   }
   savedPoiLayer = null
   hoverOverlay = null
-  poiLayer = null // 新增：销毁未使用的图层变量
 })
-
-// 修复4：保留函数但标记为/* unused */，或后续使用；解决未使用变量报错
-/* unused */
-const initPoiLayer = () => {
-  const poiSource = new VectorSource();
-  poiLayer = new VectorLayer({
-    source: poiSource,
-    style: (feature) => {
-      const poi = feature.get('poi') as Poi;
-      // 按POI类型设置颜色
-      const colorMap: Record<PoiType, string> = {
-        entrance: '#40a9ff', // 蓝色：入口
-        view: '#722ed1',    // 紫色：观景点
-        rest: '#52c41a',     // 绿色：休息区
-        exit: '#ff4d4f'      // 红色：出口
-      };
-      return new Style({
-        image: new CircleStyle({
-          radius: 8,
-          fill: new Fill({ color: colorMap[poi.type] }),
-          stroke: new Stroke({ color: '#fff', width: 2 })
-        })
-      });
-    }
-  });
-  // 修复5：map可能为null，添加非空判断
-  if (map) {
-    map.addLayer(poiLayer);
-  }
-};
 
 // === 地图初始化核心方法 ===
 function initMap() {
@@ -273,16 +240,15 @@ function initMap() {
     }
 
     // 未点击到POI：弹出新增表单
-    // 未点击到POI：弹出新增表单
     const [lng, lat] = toLonLat(event.coordinate) as [number, number]
-    // 修复点：将type从'teaching'改为合法的'entrance'，并补充is_active默认值
+    // 重置表单值，type为合法的entrance，补充is_active默认值
     form.value = {
       name: '',
       type: 'entrance' as PoiType, // 合法类型：入口
       description: '',
       lat,
       lng,
-      is_active: true // 补充：重置时默认启用，与表单默认值一致
+      is_active: true // 重置时默认启用，与表单默认值一致
     }
     dialogVisible.value = true
     nextTick(() => {
@@ -306,7 +272,7 @@ async function loadAllPois() {
       pois.forEach(poi => {
         const point = new Point(fromLonLat([poi.lng, poi.lat]))
         const feature = new Feature(point)
-        // 修复点：确保挂载完整的POI数据，包括is_active
+        // 确保挂载完整的POI数据，包括is_active
         feature.set('poi', {
           ...poi,
           is_active: poi.is_active ?? true // 兼容后端未返回的情况，默认启用
@@ -320,7 +286,6 @@ async function loadAllPois() {
   }
 }
 
-
 /**
  * 提交POI表单：调用后端新增接口
  */
@@ -329,14 +294,14 @@ async function submitForm() {
     const valid = await formRef.value?.validate()
     if (!valid) return
 
-    // 修复点：添加is_active字段，与后端接口参数一致
+    // 构造POI数据，包含is_active字段，与后端接口参数一致
     const poiData: Poi = {
       name: form.value.name,
       type: form.value.type,
       description: form.value.description,
       lat: form.value.lat,
       lng: form.value.lng,
-      is_active: form.value.is_active // 新增：传递启用状态给后端
+      is_active: form.value.is_active // 传递启用状态给后端
     }
 
     const res = await axios.post(`${API_BASE_URL}/pois`, poiData)
@@ -351,7 +316,6 @@ async function submitForm() {
     }
 
     reloadFlag.value++ // 触发地图重新加载POI
-
 
   } catch (error) {
     console.error('提交POI失败：', error)

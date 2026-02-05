@@ -55,6 +55,8 @@ const samplingResult = ref<PathSamplingPoint[]>([]);
 // 计算属性（TS类型：ComputedRef<boolean>）
 const hasPath = computed<boolean>(() => samplingResult.value.length > 0);
 
+
+  
 // 地图初始化完成（TS类型：(mapInstance: Map) => void）
 const onMapInit = (mapInstance: Map): void => {
   console.log('地图初始化完成', mapInstance);
